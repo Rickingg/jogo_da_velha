@@ -1,0 +1,909 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Jogo da Velha Infinito</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Arial', sans-serif;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        /* Fundo animado com padrões geométricos */
+        .background {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: -1;
+            background: linear-gradient(45deg, #1a1a2e, #16213e, #0f3460);
+            animation: gradientShift 8s ease-in-out infinite;
+        }
+
+        @keyframes gradientShift {
+            0%, 100% { 
+                background: linear-gradient(45deg, #1a1a2e, #16213e, #0f3460);
+            }
+            50% { 
+                background: linear-gradient(45deg, #0f3460, #16213e, #1a1a2e);
+            }
+        }
+
+        .background::before {
+            content: '';
+            position: absolute;
+            left: 0;
+            top: 0;
+            width: 50%;
+            height: 100%;
+            background: 
+                radial-gradient(circle at 20% 20%, rgba(0, 188, 212, 0.1) 0%, transparent 50%),
+                radial-gradient(circle at 80% 80%, rgba(0, 188, 212, 0.1) 0%, transparent 50%),
+                linear-gradient(135deg, rgba(0, 188, 212, 0.05) 0%, transparent 50%);
+            background-size: 100px 100px, 150px 150px, 200px 200px;
+            animation: floatLeft 12s ease-in-out infinite;
+        }
+
+        .background::after {
+            content: '';
+            position: absolute;
+            right: 0;
+            top: 0;
+            width: 50%;
+            height: 100%;
+            background: 
+                radial-gradient(circle at 20% 20%, rgba(233, 30, 99, 0.1) 0%, transparent 50%),
+                radial-gradient(circle at 80% 80%, rgba(233, 30, 99, 0.1) 0%, transparent 50%),
+                linear-gradient(135deg, rgba(233, 30, 99, 0.05) 0%, transparent 50%);
+            background-size: 120px 120px, 180px 180px, 250px 250px;
+            animation: floatRight 15s ease-in-out infinite;
+        }
+
+        @keyframes floatLeft {
+            0%, 100% { 
+                transform: translateY(0px) rotate(0deg);
+                background-position: 0% 0%, 50% 50%, 0% 100%;
+            }
+            50% { 
+                transform: translateY(-20px) rotate(2deg);
+                background-position: 20% 20%, 70% 30%, 10% 80%;
+            }
+        }
+
+        @keyframes floatRight {
+            0%, 100% { 
+                transform: translateY(0px) rotate(0deg);
+                background-position: 0% 0%, 50% 50%, 100% 0%;
+            }
+            50% { 
+                transform: translateY(20px) rotate(-2deg);
+                background-position: 30% 10%, 80% 70%, 90% 20%;
+            }
+        }
+
+        /* Destacar lado do jogador ativo */
+        .background.x-turn::before {
+            background: 
+                radial-gradient(circle at 20% 20%, rgba(0, 188, 212, 0.2) 0%, transparent 50%),
+                radial-gradient(circle at 80% 80%, rgba(0, 188, 212, 0.15) 0%, transparent 50%),
+                linear-gradient(135deg, rgba(0, 188, 212, 0.1) 0%, transparent 50%);
+            filter: brightness(1.3);
+        }
+
+        .background.x-turn::after {
+            opacity: 0.6;
+        }
+
+        .background.o-turn::before {
+            opacity: 0.6;
+        }
+
+        .background.o-turn::after {
+            background: 
+                radial-gradient(circle at 20% 20%, rgba(233, 30, 99, 0.2) 0%, transparent 50%),
+                radial-gradient(circle at 80% 80%, rgba(233, 30, 99, 0.15) 0%, transparent 50%),
+                linear-gradient(135deg, rgba(233, 30, 99, 0.1) 0%, transparent 50%);
+            filter: brightness(1.3);
+        }
+
+        /* Destacar lado vencedor */
+        .background.x-winning::before {
+            filter: brightness(1.5) drop-shadow(0 0 30px rgba(0, 188, 212, 0.3));
+        }
+
+        .background.o-winning::after {
+            filter: brightness(1.5) drop-shadow(0 0 30px rgba(233, 30, 99, 0.3));
+        }
+
+        /* Barra superior com controles */
+        .top-bar {
+            background: rgba(0, 0, 0, 0.3);
+            backdrop-filter: blur(15px);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+            padding: 15px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 10px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
+        }
+
+        /* Placar central */
+        .scoreboard {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            font-size: 24px;
+            font-weight: bold;
+            color: white;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.8);
+        }
+
+        .player-score {
+            padding: 10px 18px;
+            border-radius: 15px;
+            transition: all 0.3s ease;
+            backdrop-filter: blur(10px);
+            border: 2px solid transparent;
+        }
+
+        .player-x {
+            background: linear-gradient(135deg, rgba(0, 188, 212, 0.2), rgba(0, 188, 212, 0.1));
+            border-color: rgba(0, 188, 212, 0.4);
+            box-shadow: 0 4px 15px rgba(0, 188, 212, 0.2);
+        }
+
+        .player-o {
+            background: linear-gradient(135deg, rgba(233, 30, 99, 0.2), rgba(233, 30, 99, 0.1));
+            border-color: rgba(233, 30, 99, 0.4);
+            box-shadow: 0 4px 15px rgba(233, 30, 99, 0.2);
+        }
+
+        .player-score.winning {
+            transform: scale(1.15);
+            box-shadow: 0 0 25px rgba(255, 255, 255, 0.4);
+            animation: winningPulse 2s ease-in-out infinite;
+        }
+
+        @keyframes winningPulse {
+            0%, 100% { transform: scale(1.15); }
+            50% { transform: scale(1.2); }
+        }
+
+        /* Botões de controle */
+        .controls {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        .btn {
+            padding: 12px 18px;
+            border: none;
+            border-radius: 12px;
+            background: linear-gradient(135deg, rgba(255, 255, 255, 0.15), rgba(255, 255, 255, 0.05));
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            color: white;
+            font-size: 14px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            backdrop-filter: blur(10px);
+            text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.5);
+        }
+
+        .btn:hover {
+            background: linear-gradient(135deg, rgba(255, 255, 255, 0.25), rgba(255, 255, 255, 0.15));
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(0, 0, 0, 0.3);
+        }
+
+        .btn:active {
+            transform: translateY(0);
+        }
+
+        .mode-indicator {
+            background: linear-gradient(135deg, rgba(76, 175, 80, 0.2), rgba(76, 175, 80, 0.1));
+            border-color: rgba(76, 175, 80, 0.4);
+        }
+
+        /* Container principal do jogo */
+        .game-container {
+            flex: 1;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+            position: relative;
+        }
+
+        /* Tabuleiro do jogo - MAIS DESTACADO */
+        .board {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            grid-template-rows: repeat(3, 1fr);
+            gap: 12px;
+            background: linear-gradient(135deg, rgba(0, 0, 0, 0.4), rgba(0, 0, 0, 0.2));
+            padding: 25px;
+            border-radius: 25px;
+            backdrop-filter: blur(20px);
+            box-shadow: 
+                0 20px 40px rgba(0, 0, 0, 0.3),
+                0 0 0 1px rgba(255, 255, 255, 0.1),
+                inset 0 1px 0 rgba(255, 255, 255, 0.2);
+            border: 2px solid rgba(255, 255, 255, 0.1);
+            position: relative;
+        }
+
+        .board::before {
+            content: '';
+            position: absolute;
+            top: -2px;
+            left: -2px;
+            right: -2px;
+            bottom: -2px;
+            background: linear-gradient(45deg, 
+                rgba(0, 188, 212, 0.3) 0%,
+                rgba(233, 30, 99, 0.3) 25%,
+                rgba(76, 175, 80, 0.3) 50%,
+                rgba(255, 193, 7, 0.3) 75%,
+                rgba(0, 188, 212, 0.3) 100%);
+            border-radius: 27px;
+            z-index: -1;
+            animation: borderGlow 4s linear infinite;
+        }
+
+        @keyframes borderGlow {
+            0% { 
+                background: linear-gradient(45deg, 
+                    rgba(0, 188, 212, 0.3) 0%,
+                    rgba(233, 30, 99, 0.3) 25%,
+                    rgba(76, 175, 80, 0.3) 50%,
+                    rgba(255, 193, 7, 0.3) 75%,
+                    rgba(0, 188, 212, 0.3) 100%);
+            }
+            25% { 
+                background: linear-gradient(45deg, 
+                    rgba(233, 30, 99, 0.3) 0%,
+                    rgba(76, 175, 80, 0.3) 25%,
+                    rgba(255, 193, 7, 0.3) 50%,
+                    rgba(0, 188, 212, 0.3) 75%,
+                    rgba(233, 30, 99, 0.3) 100%);
+            }
+            50% { 
+                background: linear-gradient(45deg, 
+                    rgba(76, 175, 80, 0.3) 0%,
+                    rgba(255, 193, 7, 0.3) 25%,
+                    rgba(0, 188, 212, 0.3) 50%,
+                    rgba(233, 30, 99, 0.3) 75%,
+                    rgba(76, 175, 80, 0.3) 100%);
+            }
+            75% { 
+                background: linear-gradient(45deg, 
+                    rgba(255, 193, 7, 0.3) 0%,
+                    rgba(0, 188, 212, 0.3) 25%,
+                    rgba(233, 30, 99, 0.3) 50%,
+                    rgba(76, 175, 80, 0.3) 75%,
+                    rgba(255, 193, 7, 0.3) 100%);
+            }
+            100% { 
+                background: linear-gradient(45deg, 
+                    rgba(0, 188, 212, 0.3) 0%,
+                    rgba(233, 30, 99, 0.3) 25%,
+                    rgba(76, 175, 80, 0.3) 50%,
+                    rgba(255, 193, 7, 0.3) 75%,
+                    rgba(0, 188, 212, 0.3) 100%);
+            }
+        }
+
+        .cell {
+            width: 110px;
+            height: 110px;
+            background: linear-gradient(135deg, rgba(255, 255, 255, 0.1), rgba(255, 255, 255, 0.05));
+            border: 2px solid rgba(255, 255, 255, 0.2);
+            border-radius: 18px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 52px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            backdrop-filter: blur(10px);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .cell::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
+            transition: left 0.5s ease;
+        }
+
+        .cell:hover:not(.filled)::before {
+            left: 100%;
+        }
+
+        .cell:hover:not(.filled) {
+            background: linear-gradient(135deg, rgba(255, 255, 255, 0.2), rgba(255, 255, 255, 0.1));
+            transform: scale(1.05) translateY(-2px);
+            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.2);
+            border-color: rgba(255, 255, 255, 0.4);
+        }
+
+        .cell.filled {
+            cursor: not-allowed;
+            background: linear-gradient(135deg, rgba(255, 255, 255, 0.15), rgba(255, 255, 255, 0.08));
+        }
+
+        .cell.x {
+            color: #00bcd4;
+            text-shadow: 
+                0 0 10px rgba(0, 188, 212, 0.6),
+                0 0 20px rgba(0, 188, 212, 0.4),
+                0 0 30px rgba(0, 188, 212, 0.2);
+            animation: symbolGlow 2s ease-in-out infinite alternate;
+        }
+
+        .cell.o {
+            color: #e91e63;
+            text-shadow: 
+                0 0 10px rgba(233, 30, 99, 0.6),
+                0 0 20px rgba(233, 30, 99, 0.4),
+                0 0 30px rgba(233, 30, 99, 0.2);
+            animation: symbolGlow 2s ease-in-out infinite alternate;
+        }
+
+        @keyframes symbolGlow {
+            0% { 
+                filter: brightness(1);
+                transform: scale(1);
+            }
+            100% { 
+                filter: brightness(1.2);
+                transform: scale(1.02);
+            }
+        }
+
+        /* Símbolo em modo de desaparecimento */
+        .cell.fading {
+            opacity: 0.5;
+            animation: pulse 1s infinite;
+            background: linear-gradient(135deg, rgba(255, 255, 0, 0.1), rgba(255, 255, 0, 0.05));
+            border-color: rgba(255, 255, 0, 0.3);
+        }
+
+        @keyframes pulse {
+            0%, 100% { 
+                opacity: 0.5;
+                transform: scale(1);
+            }
+            50% { 
+                opacity: 0.3;
+                transform: scale(0.95);
+            }
+        }
+
+        /* Linha vencedora */
+        .cell.winning {
+            background: linear-gradient(135deg, rgba(255, 255, 255, 0.3), rgba(255, 255, 255, 0.2));
+            animation: winningGlow 0.8s ease-in-out infinite alternate;
+            border-color: rgba(255, 255, 255, 0.6);
+        }
+
+        @keyframes winningGlow {
+            0% { 
+                box-shadow: 0 0 10px rgba(255, 255, 255, 0.5);
+                transform: scale(1);
+            }
+            100% { 
+                box-shadow: 0 0 25px rgba(255, 255, 255, 0.8);
+                transform: scale(1.05);
+            }
+        }
+
+        /* Indicador de turno */
+        .turn-indicator {
+            position: absolute;
+            top: 60%;
+            transform: translateY(-50%);
+            font-size: 18px;
+            font-weight: bold;
+            color: white;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.8);
+            transition: all 0.3s ease;
+            background: linear-gradient(135deg, rgba(0, 0, 0, 0.4), rgba(0, 0, 0, 0.2));
+            padding: 12px 18px;
+            border-radius: 25px;
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+
+        .turn-indicator.left {
+            left: 20px;
+        }
+
+        .turn-indicator.right {
+            right: 20px;
+        }
+
+        .turn-indicator.active {
+            transform: translateY(-50%) scale(1.2);
+            text-shadow: 0 0 15px rgba(255, 255, 255, 0.9);
+            box-shadow: 0 0 20px rgba(255, 255, 255, 0.3);
+            background: linear-gradient(135deg, rgba(255, 255, 255, 0.2), rgba(255, 255, 255, 0.1));
+        }
+
+        /* Animação de vitória */
+        .victory-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: radial-gradient(circle, rgba(0, 0, 0, 0.8) 0%, rgba(0, 0, 0, 0.9) 100%);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.5s ease;
+            backdrop-filter: blur(10px);
+        }
+
+        .victory-overlay.show {
+            opacity: 1;
+            pointer-events: all;
+        }
+
+        .victory-message {
+            text-align: center;
+            color: white;
+            font-size: 56px;
+            font-weight: bold;
+            text-shadow: 0 0 20px rgba(255, 255, 255, 0.5);
+            animation: victoryPulse 1s ease-in-out infinite alternate;
+            background: linear-gradient(135deg, rgba(255, 255, 255, 0.1), rgba(255, 255, 255, 0.05));
+            padding: 30px 50px;
+            border-radius: 20px;
+            backdrop-filter: blur(15px);
+            border: 2px solid rgba(255, 255, 255, 0.3);
+        }
+
+        .victory-message.x-wins {
+            color: #00bcd4;
+            text-shadow: 0 0 30px rgba(0, 188, 212, 0.8);
+            border-color: rgba(0, 188, 212, 0.5);
+        }
+
+        .victory-message.o-wins {
+            color: #e91e63;
+            text-shadow: 0 0 30px rgba(233, 30, 99, 0.8);
+            border-color: rgba(233, 30, 99, 0.5);
+        }
+
+        @keyframes victoryPulse {
+            0% { 
+                transform: scale(1);
+                filter: brightness(1);
+            }
+            100% { 
+                transform: scale(1.05);
+                filter: brightness(1.3);
+            }
+        }
+
+        .victory-confetti {
+            position: absolute;
+            width: 10px;
+            height: 10px;
+            background: #ffeb3b;
+            animation: confetti 3s ease-out forwards;
+        }
+
+        @keyframes confetti {
+            0% {
+                transform: translateY(-100vh) rotate(0deg);
+                opacity: 1;
+            }
+            100% {
+                transform: translateY(100vh) rotate(720deg);
+                opacity: 0;
+            }
+        }
+
+        /* Responsividade */
+        @media (max-width: 768px) {
+            .top-bar {
+                flex-direction: column;
+                text-align: center;
+            }
+
+            .scoreboard {
+                font-size: 20px;
+                gap: 10px;
+            }
+
+            .cell {
+                width: 85px;
+                height: 85px;
+                font-size: 40px;
+            }
+
+            .turn-indicator {
+                position: static;
+                margin: 10px 0;
+                transform: none;
+            }
+
+            .turn-indicator.active {
+                transform: scale(1.1);
+                box-shadow: 0 0 15px rgba(255, 255, 255, 0.3);
+            }
+
+            .victory-message {
+                font-size: 40px;
+                padding: 20px 30px;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .cell {
+                width: 70px;
+                height: 70px;
+                font-size: 32px;
+            }
+
+            .scoreboard {
+                font-size: 18px;
+            }
+
+            .btn {
+                padding: 10px 15px;
+                font-size: 12px;
+            }
+
+            .victory-message {
+                font-size: 32px;
+                padding: 15px 25px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="background" id="background"></div>
+    
+    <!-- Barra superior com controles -->
+    <div class="top-bar">
+        <div class="controls">
+            <button class="btn" onclick="resetRound()">🔁 Reiniciar Rodada</button>
+            <button class="btn" onclick="resetScore()">🔄 Reiniciar Placar</button>
+            <button class="btn mode-indicator" onclick="toggleMode()" id="modeBtn">🔃 Modo: Infinito</button>
+        </div>
+        
+        <!-- Placar central -->
+        <div class="scoreboard">
+            <div class="player-score player-x" id="scoreX">X <span id="xScore">0</span></div>
+            <div style="color: white;">x</div>
+            <div class="player-score player-o" id="scoreO"><span id="oScore">0</span> O</div>
+        </div>
+        
+        <!-- Indicadores de turno para mobile -->
+        <div class="turn-indicator" id="turnIndicator">Vez do X</div>
+    </div>
+
+    <!-- Indicadores de turno para desktop -->
+    <div class="turn-indicator left" id="turnLeft">Sua vez!</div>
+    <div class="turn-indicator right" id="turnRight">Aguarde...</div>
+
+    <!-- Overlay de vitória -->
+    <div class="victory-overlay" id="victoryOverlay">
+        <div class="victory-message" id="victoryMessage">
+            X Venceu!
+        </div>
+    </div>
+
+    <!-- Container do jogo -->
+    <div class="game-container">
+        <div class="board" id="board">
+            <!-- Células serão criadas dinamicamente -->
+        </div>
+    </div>
+
+    <script>
+        // Estado do jogo
+        let currentPlayer = 'X';
+        let gameMode = 'infinite'; // 'infinite' ou 'classic'
+        let board = Array(9).fill('');
+        let gameActive = true;
+        let scores = { X: 0, O: 0 };
+        
+        // Para o modo infinito: histórico de jogadas (ordem cronológica)
+        let moveHistory = []; // Array de objetos: {player, position, moveNumber}
+        let moveCounter = 0;
+        let fadingCell = null; // Célula que está prestes a desaparecer
+
+        // Combinações vencedoras
+        const winningCombinations = [
+            [0, 1, 2], [3, 4, 5], [6, 7, 8], // Linhas
+            [0, 3, 6], [1, 4, 7], [2, 5, 8], // Colunas
+            [0, 4, 8], [2, 4, 6] // Diagonais
+        ];
+
+        // Inicializar o jogo
+        function initGame() {
+            createBoard();
+            updateDisplay();
+        }
+
+        // Criar o tabuleiro
+        function createBoard() {
+            const boardElement = document.getElementById('board');
+            boardElement.innerHTML = '';
+            
+            for (let i = 0; i < 9; i++) {
+                const cell = document.createElement('div');
+                cell.className = 'cell';
+                cell.onclick = () => makeMove(i);
+                boardElement.appendChild(cell);
+            }
+        }
+
+        // Fazer uma jogada
+        function makeMove(position) {
+            if (!gameActive || board[position] !== '') {
+                return;
+            }
+
+            // MODO INFINITO: Processar desaparecimento antes da nova jogada
+            if (gameMode === 'infinite' && fadingCell !== null && moveHistory.length >= 6) {
+                // A partir do 7º lance, remove o símbolo que estava em modo de desaparecimento
+                board[fadingCell] = '';
+                // Remove da lista de histórico
+                moveHistory = moveHistory.filter(move => move.position !== fadingCell);
+                fadingCell = null;
+            }
+
+            // Fazer a jogada atual
+            board[position] = currentPlayer;
+            moveCounter++;
+
+            // Adicionar ao histórico (modo infinito)
+            if (gameMode === 'infinite') {
+                moveHistory.push({
+                    player: currentPlayer,
+                    position: position,
+                    moveNumber: moveCounter
+                });
+            }
+
+            // Verificar vitória
+            if (checkWinner()) {
+                gameActive = false;
+                scores[currentPlayer]++;
+                showVictoryAnimation(currentPlayer);
+                setTimeout(() => {
+                    resetRound();
+                }, 3000);
+                updateDisplay();
+                return;
+            }
+
+            // Verificar empate (apenas no modo clássico)
+            if (gameMode === 'classic' && !board.includes('')) {
+                gameActive = false;
+                setTimeout(() => {
+                    showVictoryAnimation('empate');
+                    setTimeout(() => {
+                        resetRound();
+                    }, 3000);
+                }, 500);
+                return;
+            }
+
+            // MODO INFINITO: Marcar próximo símbolo para desaparecer
+            if (gameMode === 'infinite' && moveHistory.length >= 6) {
+                // A partir do 6º lance, o símbolo mais antigo entra em modo de desaparecimento
+                const oldestMove = moveHistory[0];
+                fadingCell = oldestMove.position;
+            }
+
+            // Alternar jogador
+            currentPlayer = currentPlayer === 'X' ? 'O' : 'X';
+            updateDisplay();
+        }
+
+        // Verificar vencedor
+        function checkWinner() {
+            for (let combination of winningCombinations) {
+                const [a, b, c] = combination;
+                if (board[a] && board[a] === board[b] && board[a] === board[c]) {
+                    // Destacar células vencedoras
+                    const cells = document.querySelectorAll('.cell');
+                    combination.forEach(index => {
+                        cells[index].classList.add('winning');
+                    });
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        // Atualizar display
+        function updateDisplay() {
+            const cells = document.querySelectorAll('.cell');
+            const background = document.getElementById('background');
+            
+            // Atualizar células do tabuleiro
+            cells.forEach((cell, index) => {
+                cell.textContent = board[index];
+                cell.className = 'cell';
+                
+                if (board[index] !== '') {
+                    cell.classList.add('filled', board[index].toLowerCase());
+                }
+                
+                // Marcar célula em modo de desaparecimento
+                if (gameMode === 'infinite' && fadingCell === index) {
+                    cell.classList.add('fading');
+                }
+            });
+
+            // Atualizar placar
+            document.getElementById('xScore').textContent = scores.X;
+            document.getElementById('oScore').textContent = scores.O;
+            
+            // Destacar lado do jogador atual e lado vencedor no fundo
+            background.className = 'background';
+            const scoreX = document.getElementById('scoreX');
+            const scoreO = document.getElementById('scoreO');
+            
+            scoreX.classList.remove('winning');
+            scoreO.classList.remove('winning');
+            
+            // Destacar lado do jogador atual
+            if (gameActive) {
+                if (currentPlayer === 'X') {
+                    background.classList.add('x-turn');
+                } else {
+                    background.classList.add('o-turn');
+                }
+            }
+            
+            // Destacar lado vencedor no placar (sobrescreve o destaque de turno)
+            if (scores.X > scores.O) {
+                background.classList.remove('x-turn', 'o-turn');
+                background.classList.add('x-winning');
+                scoreX.classList.add('winning');
+            } else if (scores.O > scores.X) {
+                background.classList.remove('x-turn', 'o-turn');
+                background.classList.add('o-winning');
+                scoreO.classList.add('winning');
+            }
+
+            // Atualizar indicadores de turno
+            updateTurnIndicators();
+        }
+
+        // Atualizar indicadores de turno
+        function updateTurnIndicators() {
+            const turnLeft = document.getElementById('turnLeft');
+            const turnRight = document.getElementById('turnRight');
+            const turnIndicator = document.getElementById('turnIndicator');
+            
+            if (currentPlayer === 'X') {
+                turnLeft.classList.add('active');
+                turnRight.classList.remove('active');
+                turnLeft.textContent = 'Sua vez!';
+                turnRight.textContent = 'Aguarde...';
+                turnIndicator.textContent = 'Vez do X';
+            } else {
+                turnLeft.classList.remove('active');
+                turnRight.classList.add('active');
+                turnLeft.textContent = 'Aguarde...';
+                turnRight.textContent = 'Sua vez!';
+                turnIndicator.textContent = 'Vez do O';
+            }
+        }
+
+        // Mostrar animação de vitória
+        function showVictoryAnimation(winner) {
+            const overlay = document.getElementById('victoryOverlay');
+            const message = document.getElementById('victoryMessage');
+            
+            if (winner === 'empate') {
+                message.textContent = 'Empate!';
+                message.className = 'victory-message';
+            } else {
+                message.textContent = `${winner} Venceu!`;
+                message.className = `victory-message ${winner.toLowerCase()}-wins`;
+            }
+            
+            overlay.classList.add('show');
+            
+            // Criar confetes
+            createConfetti(winner);
+            
+            // Esconder overlay após 3 segundos
+            setTimeout(() => {
+                overlay.classList.remove('show');
+            }, 2500);
+        }
+
+        // Criar efeito de confetes
+        function createConfetti(winner) {
+            const colors = winner === 'X' ? ['#00bcd4', '#4dd0e1', '#80deea'] : 
+                          winner === 'O' ? ['#e91e63', '#f06292', '#f8bbd9'] : 
+                          ['#ffeb3b', '#fff176', '#ffff8d'];
+            
+            for (let i = 0; i < 50; i++) {
+                setTimeout(() => {
+                    const confetti = document.createElement('div');
+                    confetti.className = 'victory-confetti';
+                    confetti.style.left = Math.random() * 100 + '%';
+                    confetti.style.background = colors[Math.floor(Math.random() * colors.length)];
+                    confetti.style.animationDelay = Math.random() * 2 + 's';
+                    document.body.appendChild(confetti);
+                    
+                    setTimeout(() => {
+                        confetti.remove();
+                    }, 3000);
+                }, i * 50);
+            }
+        }
+
+        // Reiniciar rodada
+        function resetRound() {
+            board = Array(9).fill('');
+            currentPlayer = 'X';
+            gameActive = true;
+            moveHistory = [];
+            moveCounter = 0;
+            fadingCell = null;
+            
+            // Limpar destaque das células
+            const cells = document.querySelectorAll('.cell');
+            cells.forEach(cell => {
+                cell.classList.remove('winning', 'fading');
+            });
+            
+            updateDisplay();
+        }
+
+        // Reiniciar placar
+        function resetScore() {
+            scores = { X: 0, O: 0 };
+            resetRound();
+        }
+
+        // Alternar modo de jogo
+        function toggleMode() {
+            gameMode = gameMode === 'infinite' ? 'classic' : 'infinite';
+            const modeBtn = document.getElementById('modeBtn');
+            modeBtn.textContent = `🔃 Modo: ${gameMode === 'infinite' ? 'Infinito' : 'Clássico'}`;
+            resetRound();
+        }
+
+        // Inicializar quando a página carregar
+        window.onload = initGame;
+    </script>
+</body>
+</html>
